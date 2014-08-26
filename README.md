@@ -1,0 +1,2 @@
+- `docker build .`
+- `docker run -it --rm  XXXXXXXXXXXX`
