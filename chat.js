@@ -2,7 +2,7 @@ var server = require('http').Server();
 var io = require('socket.io')(server);
 var crypto = require('crypto');
 var redis = require("redis");
-var redisCli = redis.createClient(null, 'redis??.unsee.cc', {detect_buffers: true});
+var redisCli = redis.createClient(null, 'redis-us.unsee.cc', {detect_buffers: true});
 var clientSess = '';
 
 function getSession(socket) {
