@@ -1,8 +1,18 @@
-var server = require('http').Server();
-var io = require('socket.io')(server);
+var fs = require('fs');
+var cPath = '/etc/ssl/localcerts/';
+var sslOptions = {
+  key: fs.readFileSync(cPath + 'unsee.cc.key.nopass'),
+  cert: fs.readFileSync(cPath + 'unsee_bundle.crt')
+};
+var app = require('https').createServer(sslOptions).listen(3000);
+var io = require('socket.io')(app);
 var crypto = require('crypto');
 var redis = require("redis");
-var redisCli = redis.createClient(null, 'redis-us.unsee.cc', {detect_buffers: true});
+
+try {
+    var redisCli = redis.createClient(3000, 'redis-us.unsee.cc', {detect_buffers: true});
+} catch (e) {
+}
 var clientSess = '';
 
 function getSession(socket) {
@@ -72,4 +82,3 @@ io.on('connection', function(socket) {
         }
     });
 });
-server.listen(3001);
