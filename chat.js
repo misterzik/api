@@ -7,10 +7,11 @@ var sslOptions = {
 var app = require('https').createServer(sslOptions).listen(3000);
 var io = require('socket.io')(app);
 var crypto = require('crypto');
-var redis = require("redis");
 
 try {
-    var redisCli = redis.createClient(3000, 'redis-us.unsee.cc', {detect_buffers: true});
+    var redis = require("redis");
+    redis.debug_mode = true;
+    var redisCli = redis.createClient(3000, 'redis-us.unsee.cc', {detect_buffers: true, no_ready_check: true});
 } catch (e) {
 }
 var clientSess = '';
@@ -32,15 +33,19 @@ io.on('connection', function(socket) {
         } catch (e) {
         }
 
-        redisCli.select(0, function() {
-            redisCli.hgetall(hash, function(some, obj) {
-                if (!obj) {
-                    return false;
-                }
+        try {
+            redisCli.select(0, function() {
+                redisCli.hgetall(hash, function(some, obj) {
+                    if (!obj) {
+                        return false;
+                    }
 
-                socket.authorSess = obj.sess;
+                    socket.authorSess = obj.sess;
+                });
             });
-        });
+        } catch (e) {
+            console.log(e);
+        }
     });
 
     socket.on('message', function(ob) {
@@ -65,14 +70,18 @@ io.on('connection', function(socket) {
 
         var sess = getSession(socket);
 
-        redisCli.select(2, function() {
-            imgs.forEach(function(img, index) {
-                imgs[index].imageTicket = crypto.createHash('md5').update(sess + img.hashKey).digest('hex');
-                redisCli.hset(sess, img.key, 1);
-            });
+        try {
+            redisCli.select(2, function() {
+                imgs.forEach(function(img, index) {
+                    imgs[index].imageTicket = crypto.createHash('md5').update(sess + img.hashKey).digest('hex');
+                    redisCli.hset(sess, img.key, 1);
+                });
 
-            socket.emit('tickets_issued', imgs);
-        });
+                socket.emit('tickets_issued', imgs);
+            });
+        } catch (e) {
+            console.log(e);
+        }
     });
 
     socket.on('disconnect', function() {
