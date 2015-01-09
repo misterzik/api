@@ -1,8 +1,8 @@
 var fs = require('fs');
 var cPath = '/etc/ssl/localcerts/';
 var sslOptions = {
-  key: fs.readFileSync(cPath + 'unsee.cc.key.nopass'),
-  cert: fs.readFileSync(cPath + 'unsee_bundle.crt')
+  key: fs.readFileSync(cPath + 'unsee.cc.key'),
+  cert: fs.readFileSync(cPath + 'unsee.cc.crt')
 };
 var app = require('https').createServer(sslOptions).listen(3000);
 var io = require('socket.io')(app);
