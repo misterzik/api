@@ -10,14 +10,13 @@ var crypto = require('crypto');
 
 try {
     var redis = require("redis");
-    redis.debug_mode = true;
-    var redisCli = redis.createClient(3000, 'redis-us.unsee.cc', {detect_buffers: true, no_ready_check: true});
+    var redisCli = redis.createClient(6379, 'redis-us.unsee.cc', {detect_buffers: true, no_ready_check: true});
 } catch (e) {
 }
 var clientSess = '';
 
 function getSession(socket) {
-    var ip = socket.client.request.headers['x-forwarded-for'];
+    var ip = '192.168.59.3'; // TODO: Get the IP of the current viewer (using node)
     var ua = socket.client.request.headers['user-agent'];
     return crypto.createHash('md5').update(ua + ip).digest('hex');
 }
