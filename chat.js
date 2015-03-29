@@ -16,7 +16,7 @@ try {
 var clientSess = '';
 
 function getSession(socket) {
-    var ip = '192.168.59.3'; // TODO: Get the IP of the current viewer (using node)
+    var ip = socket.conn.remoteAddress;
     var ua = socket.client.request.headers['user-agent'];
     return crypto.createHash('md5').update(ua + ip).digest('hex');
 }
@@ -61,23 +61,9 @@ io.on('connection', function(socket) {
         io.to(socket.room).emit('message', resp);
     });
 
-    socket.on('require_tickets', function(imgs) {
-        io.to(socket.room).emit('require_tickets', imgs);
-    });
-
-    socket.on('issue_tickets', function(imgs) {
-
-        var sess = getSession(socket);
-
+    socket.on('images_added', function () {
         try {
-            redisCli.select(2, function() {
-                imgs.forEach(function(img, index) {
-                    imgs[index].imageTicket = crypto.createHash('md5').update(sess + img.hashKey).digest('hex');
-                    redisCli.hset(sess, img.key, 1);
-                });
-
-                socket.emit('tickets_issued', imgs);
-            });
+            io.to(socket.room).emit('images_added');
         } catch (e) {
             console.log(e);
         }
