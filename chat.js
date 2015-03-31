@@ -10,7 +10,7 @@ var crypto = require('crypto');
 
 try {
     var redis = require("redis");
-    var redisCli = redis.createClient(6379, 'redis-us.unsee.cc', {detect_buffers: true, no_ready_check: true});
+    var redisCli = redis.createClient(6379, 'redis.unsee.cc', {detect_buffers: true, no_ready_check: true});
 } catch (e) {
 }
 var clientSess = '';
