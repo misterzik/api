@@ -7,7 +7,6 @@ var sslOptions = {
 var app = require('https').createServer(sslOptions).listen(3123);
 var WebSocketServer = require('ws').Server;
 var wss = new WebSocketServer({server: app});
-
 var sdk = require('./sdk.js');
 
 sdk.Message.prototype.create = function () {
@@ -31,12 +30,23 @@ sdk.Message.prototype.process = function () {
     }
 };
 
+sdk.Image.prototype.create = function () {
+    return 'newid';
+};
+
 wss.on('connection', function (ws) {
     ws.on('message', function (data) {
         var mess = new sdk.Message();
         var entity = mess.getEntity(data);
+
+        if (!entity) {
+            return false;
+        }
+
         entity.process();
-        entity.send(ws);
+
+        var payload = entity.export();
+        ws.send(payload);
     });
 
     ws.on('close', function () {

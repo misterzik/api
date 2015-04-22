@@ -3,60 +3,21 @@
 <head>
     <script src="sdk.js"></script>
     <script>
-        function Socket(url) {
-            this.reconnectInterval = 1000;
-            this.timer = null;
-            this.url = url;
-            this.ws = null;
+        function imageHandler (image) {
+            console.log('Handling image', image);
         }
 
-        Socket.prototype.setHandlers = function () {
-
-            var self = this;
-
-            this.ws.onopen = function () {return self.open()};
-            this.ws.onmessage = function () {return self.message()};
-            this.ws.onclose = function () {return self.close()};
-            this.ws.onerror = function () {return self.error()};
-        };
-
-        Socket.prototype.connect = function () {
-            console.log('Connection...', this);
-            if (!this.url) {
-                return false;
-            }
-
-            this.ws = new WebSocket(this.url);
-            this.setHandlers();
-        };
-
-        Socket.prototype.open = function () {
-            console.info('Connected!');
-            clearTimeout(this.timer);
-        };
-
-        Socket.prototype.message = function (e) {
-            var message = new sdk.Message();
-            var entity = message.getEntity(e.data);
-            console.log(entity);
-        };
-
-        Socket.prototype.error = function () {
-            console.error('Socket error!');
-        };
-
-        Socket.prototype.close = function () {
-            console.info('Lost connection');
-            var self = this;
-            setTimeout(function () {
-                self.connect(self.url)
-            }, this.reconnectInterval);
-        };
-
-        var sock = new Socket('wss://unsee.cc:3123');
+        var sock = new sdk.Socket('wss://unsee.cc:3123');
         sock.connect();
 
+        sock.setHandler('Image', imageHandler);
 
+        var im = new Image;
+        im.setData('width', 100);
+
+        setTimeout(function () {
+            sock.send(im);
+        }, 0);
     </script>
 </head>
 <body>

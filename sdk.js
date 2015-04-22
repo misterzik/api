@@ -6,9 +6,9 @@
         this.entity = null;
         this.id = null;
         this.data = null;
+        this.dataFields = [];
         this.slice = [];
         this.silent = false;
-        this.dataFields = [];
     }
 
     Message.prototype.setId = function (id) {
@@ -39,21 +39,6 @@
     Message.prototype.setSilent = function (silent) {
         this.silent = !!silent;
     };
-
-    Message.prototype.send = function (ws) {
-
-        var message = {
-            entity: this.entity,
-            id: this.id,
-            data: this.data,
-            slice: this.slice
-        };
-
-        console.log('Sending', message);
-
-        ws.send(JSON.stringify(message));
-    };
-
 
     Message.prototype.getEntity = function (message) {
         try {
@@ -101,9 +86,20 @@
         return entity;
     };
 
+    Message.prototype.export = function () {
+        var payload = {};
+
+        payload.entity = this.entity;
+        payload.id = this.id;
+        payload.data = this.data;
+        payload.slice = this.slice;
+
+        return JSON.stringify(payload);
+    };
 
     // Specific messages
 
+    // Image
     Image = function () {
         Message.call(this);
         this.entity = 'Image';
@@ -114,8 +110,150 @@
     Image.prototype.constructor = Image;
 
 
-    exports.Image = Image;
+    // Album
+    Album = function () {
+        Message.call(this);
+        this.entity = 'Album';
+        this.dataFields = [];
+    };
+
+    Album.prototype = new Message();
+    Album.prototype.constructor = Album;
+
+    // Setting
+    Setting = function () {
+        Message.call(this);
+        this.entity = 'Setting';
+        this.dataFields = [
+            'preset', // default by default
+            'title',
+            'description',
+            'allow_download',
+            'allow_from_domain'
+        ];
+    };
+
+    Setting.prototype = new Message();
+    Setting.prototype.constructor = Setting;
+
+
+    // Notification
+    Chat = function () {
+        Message.call(this);
+        this.entity = 'Chat';
+        this.dataFields = [
+            'content',
+            'image',
+            'notification'
+        ];
+    };
+
+    Chat.prototype = new Message();
+    Chat.prototype.constructor = Chat;
+
+
+    // Notification
+    Block = function () {
+        Message.call(this);
+        this.entity = 'Block';
+        this.dataFields = [
+            ''
+        ];
+    };
+
+    Chat.prototype = new Message();
+    Chat.prototype.constructor = Chat;
+
+
+    function Socket(url) {
+        this.url = url;
+        this.ws = null;
+        this.queue = [];
+        this.messageHandlers = {};
+    }
+
+    Socket.prototype.setHandlers = function () {
+        var self = this;
+
+        this.ws.onopen = function () {
+            return self.open()
+        };
+        this.ws.onmessage = function (message) {
+            return self.message(message)
+        };
+        this.ws.onclose = function () {
+            return self.close()
+        };
+        this.ws.onerror = function () {
+            return self.error()
+        };
+    };
+
+    Socket.prototype.connect = function () {
+        if (!this.url) {
+            return false;
+        }
+
+        this.ws = new WebSocket(this.url);
+        this.setHandlers();
+    };
+
+    Socket.prototype.open = function () {
+        console.info('Connected');
+
+        for (var i in this.queue) {
+            this.send(this.queue[i]);
+        }
+    };
+
+    Socket.prototype.message = function (e) {
+        var message = new sdk.Message();
+        var entity = message.getEntity(e.data);
+
+        if (this.messageHandlers[entity.entity]) {
+            this.messageHandlers[entity.entity](entity);
+        } else {
+            console.log('Not handling incoming', entity.entity);
+        }
+    };
+
+    Socket.prototype.error = function () {
+        console.error('Socket error!');
+    };
+
+    Socket.prototype.close = function () {
+        console.info('Lost connection');
+        var self = this;
+        setTimeout(function () {
+            self.connect(self.url)
+        }, this.reconnectInterval);
+    };
+
+    Socket.prototype.send = function (message) {
+        try {
+            this.ws.send(message.export());
+            console.log('Sending', message);
+            return true;
+        } catch (e) {
+            this.queue.push(message);
+            console.error('Failed to send', message);
+            return false;
+        }
+    };
+
+    Socket.prototype.setHandler = function (messageType, callback) {
+        this.messageHandlers[messageType] = callback;
+    };
+
+    exports.Socket = Socket;
     exports.Message = Message;
+
+    exports.Image = Image;
+    exports.Album = Album;
+    exports.Setting = Setting;
+    exports.Chat = Chat;
+
+
 
 })(typeof exports === 'undefined' ? this['sdk'] = {} : exports);
 
