@@ -9,29 +9,9 @@ var WebSocketServer = require('ws').Server;
 var wss = new WebSocketServer({server: app});
 var sdk = require('./sdk.js');
 
-sdk.Message.prototype.create = function () {
-    console.log('Creating not implemented', this.data);
-    return null;
-};
-sdk.Message.prototype.modify = function () {
-    console.log('Modification not implemented', this.data);
-};
-sdk.Message.prototype.remove = function () {
-    console.log('Deletion not implemented', this.data);
-};
-
-sdk.Message.prototype.process = function () {
-    if (this.id === null) {
-        this.id = this.create();
-    } else if (this.data === null) {
-        this.remove();
-    } else {
-        this.modify();
-    }
-};
-
 sdk.Image.prototype.create = function () {
-    return 'newid';
+    console.log('Creating image', this.export());
+    this.id = 'api.new.id';
 };
 
 wss.on('connection', function (ws) {
@@ -45,6 +25,7 @@ wss.on('connection', function (ws) {
 
         entity.process();
 
+        // Send back as is
         var payload = entity.export();
         ws.send(payload);
     });

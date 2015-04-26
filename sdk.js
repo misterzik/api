@@ -7,9 +7,16 @@
         this.id = null;
         this.data = null;
         this.dataFields = [];
-        this.slice = [];
+        this.limit = 1;
+        this.offset = 0;
         this.silent = false;
+        this.action = null;
+        this.actions = ['create', 'remove', 'modify'];
     }
+
+    Message.prototype.setAction = function (action) {
+        this.action = action;
+    };
 
     Message.prototype.setId = function (id) {
         this.id = id;
@@ -29,11 +36,12 @@
         this.data[key] = value;
     };
 
-    Message.prototype.setSlice = function (limit, offset) {
-        limit = limit || 1;
-        offset = offset || 0;
+    Message.prototype.setLimit = function (limit) {
+        this.limit = limit;
+    };
 
-        this.slice = [limit, offset];
+    Message.prototype.setOffset = function (offset) {
+        this.offset = offset;
     };
 
     Message.prototype.setSilent = function (silent) {
@@ -55,6 +63,13 @@
 
         var entity = new exports[message.entity];
 
+        if (!message.hasOwnProperty('action')) {
+            console.error('Action not provided');
+            return null;
+        }
+
+        entity.setAction(message.action);
+
         if (message.hasOwnProperty('id')) {
             entity.setId(message.id);
         }
@@ -68,10 +83,12 @@
             }
         }
 
-        if (message.hasOwnProperty('slice')) {
-            entity.setSlice(message.slice[0], message.slice[1]);
-        } else {
-            entity.setSlice();
+        if (message.hasOwnProperty('limit')) {
+            entity.setLimit(message.limit);
+        }
+
+        if (message.hasOwnProperty('offset')) {
+            entity.setOffset(message.offset);
         }
 
         if (message.hasOwnProperty('silent')) {
@@ -92,9 +109,33 @@
         payload.entity = this.entity;
         payload.id = this.id;
         payload.data = this.data;
-        payload.slice = this.slice;
+        payload.limit = this.limit;
+        payload.offset = this.offset;
+        payload.action = this.action;
+        payload.silent = this.silent;
 
         return JSON.stringify(payload);
+    };
+
+    Message.prototype.create = function () {
+        console.log('Creating not implemented', this.data);
+        return null;
+    };
+    Message.prototype.modify = function () {
+        console.log('Modification not implemented', this.data);
+    };
+    Message.prototype.remove = function () {
+        console.log('Deletion not implemented', this.data);
+    };
+
+    Message.prototype.process = function () {
+        console.log('Processing message', this);
+        if (!~this.actions.indexOf(this.action)) {
+            console.error('Invalid action', this);
+            return false;
+        }
+
+        return this[this.action]();
     };
 
     // Specific messages
@@ -137,14 +178,13 @@
     Setting.prototype.constructor = Setting;
 
 
-    // Notification
+    // Chat message
     Chat = function () {
         Message.call(this);
         this.entity = 'Chat';
         this.dataFields = [
             'content',
-            'image',
-            'notification'
+            'image'
         ];
     };
 
@@ -153,17 +193,17 @@
 
 
     // Notification
-    Block = function () {
+    Notice = function () {
         Message.call(this);
-        this.entity = 'Block';
+        this.entity = 'Notice';
         this.dataFields = [
-            ''
+            'content',
+            'type'
         ];
     };
 
-    Chat.prototype = new Message();
-    Chat.prototype.constructor = Chat;
-
+    Notice.prototype = new Message();
+    Notice.prototype.constructor = Notice;
 
     function Socket(url) {
         this.url = url;
@@ -210,11 +250,7 @@
         var message = new sdk.Message();
         var entity = message.getEntity(e.data);
 
-        if (this.messageHandlers[entity.entity]) {
-            this.messageHandlers[entity.entity](entity);
-        } else {
-            console.log('Not handling incoming', entity.entity);
-        }
+        entity.process();
     };
 
     Socket.prototype.error = function () {
@@ -226,13 +262,13 @@
         var self = this;
         setTimeout(function () {
             self.connect(self.url)
-        }, this.reconnectInterval);
+        }, 1000);
     };
 
     Socket.prototype.send = function (message) {
         try {
             this.ws.send(message.export());
-            console.log('Sending', message);
+            console.log('Sending', JSON.parse(message.export()));
             return true;
         } catch (e) {
             this.queue.push(message);
@@ -241,19 +277,13 @@
         }
     };
 
-    Socket.prototype.setHandler = function (messageType, callback) {
-        this.messageHandlers[messageType] = callback;
-    };
-
     exports.Socket = Socket;
     exports.Message = Message;
-
     exports.Image = Image;
     exports.Album = Album;
     exports.Setting = Setting;
     exports.Chat = Chat;
-
-
+    exports.Notice = Notice;
 
 })(typeof exports === 'undefined' ? this['sdk'] = {} : exports);
 

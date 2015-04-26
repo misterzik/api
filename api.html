@@ -3,23 +3,25 @@
 <head>
     <script src="sdk.js"></script>
     <script>
-        function imageHandler (image) {
+        function imageHandler(image) {
             console.log('Handling image', image);
         }
 
         var sock = new sdk.Socket('wss://unsee.cc:3123');
         sock.connect();
 
-        sock.setHandler('Image', imageHandler);
+        sdk.Image.prototype.create = function () {
+            console.log('Creating image', this.export());
+        };
 
-        var im = new Image;
+        // Temporary test!
+        var im = new sdk.Image;
         im.setData('width', 100);
-
-        setTimeout(function () {
-            sock.send(im);
-        }, 0);
+        im.setAction('create');
+        sock.send(im);
     </script>
 </head>
 <body>
+<input id="file" type="file" multiple/>
 </body>
 </html>
