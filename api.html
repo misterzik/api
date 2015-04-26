@@ -2,23 +2,28 @@
 <html>
 <head>
     <script src="sdk.js"></script>
+    <script src="socket.js"></script>
     <script>
         function imageHandler(image) {
             console.log('Handling image', image);
         }
 
-        var sock = new sdk.Socket('wss://unsee.cc:3123');
+
+
+        var sock = new Socket('wss://unsee.cc:3123');
         sock.connect();
 
         sdk.Image.prototype.create = function () {
             console.log('Creating image', this.export());
         };
 
-        // Temporary test!
-        var im = new sdk.Image;
-        im.setData('width', 100);
-        im.setAction('create');
-        sock.send(im);
+        sdk.Channel.prototype.create = function () {
+            sock.queue.push(this.export());
+            console.log('Saved channel locally');
+        };
+
+        // var ch = new Channel; ch.setId('Image'); ch.setAction('create'); ch.setData('name', 'channel_test'); sock.send(ch.export());
+        // var im = new Image; im.setAction('create'); im.setData('width', '123'); im.setChannel('channel_test'); sock.send(im.export());
     </script>
 </head>
 <body>

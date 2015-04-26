@@ -12,6 +12,7 @@
         this.silent = false;
         this.action = null;
         this.actions = ['create', 'remove', 'modify'];
+        this.channel = null;
     }
 
     Message.prototype.setAction = function (action) {
@@ -20,6 +21,10 @@
 
     Message.prototype.setId = function (id) {
         this.id = id;
+    };
+
+    Message.prototype.setChannel = function (channel) {
+        this.channel = channel;
     };
 
     Message.prototype.setData = function (key, value) {
@@ -95,6 +100,10 @@
             entity.setSilent(message.silent);
         }
 
+        if (message.hasOwnProperty('channel')) {
+            entity.setChannel(message.channel);
+        }
+
         if (entity.data === null && entity.id === null) {
             console.error('Bad message, both id and data are null');
             return null;
@@ -113,29 +122,30 @@
         payload.offset = this.offset;
         payload.action = this.action;
         payload.silent = this.silent;
+        payload.channel = this.channel;
 
         return JSON.stringify(payload);
     };
 
-    Message.prototype.create = function () {
-        console.log('Creating not implemented', this.data);
+    Message.prototype.create = function (ws) {
+        console.log('Creating not implemented for', this.entity, this);
         return null;
     };
-    Message.prototype.modify = function () {
+    Message.prototype.modify = function (ws) {
         console.log('Modification not implemented', this.data);
     };
-    Message.prototype.remove = function () {
+    Message.prototype.remove = function (ws) {
         console.log('Deletion not implemented', this.data);
     };
 
-    Message.prototype.process = function () {
-        console.log('Processing message', this);
+    Message.prototype.process = function (ws) {
+        console.log('Received message', this);
         if (!~this.actions.indexOf(this.action)) {
             console.error('Invalid action', this);
             return false;
         }
 
-        return this[this.action]();
+        return this[this.action](ws);
     };
 
     // Specific messages
@@ -155,7 +165,10 @@
     Album = function () {
         Message.call(this);
         this.entity = 'Album';
-        this.dataFields = [];
+        this.dataFields = [
+            'title',
+            'description'
+        ];
     };
 
     Album.prototype = new Message();
@@ -167,8 +180,6 @@
         this.entity = 'Setting';
         this.dataFields = [
             'preset', // default by default
-            'title',
-            'description',
             'allow_download',
             'allow_from_domain'
         ];
@@ -205,85 +216,22 @@
     Notice.prototype = new Message();
     Notice.prototype.constructor = Notice;
 
-    function Socket(url) {
-        this.url = url;
-        this.ws = null;
-        this.queue = [];
-        this.messageHandlers = {};
-    }
-
-    Socket.prototype.setHandlers = function () {
-        var self = this;
-
-        this.ws.onopen = function () {
-            return self.open()
-        };
-        this.ws.onmessage = function (message) {
-            return self.message(message)
-        };
-        this.ws.onclose = function () {
-            return self.close()
-        };
-        this.ws.onerror = function () {
-            return self.error()
-        };
+    // Notification
+    Channel = function () {
+        Message.call(this);
+        this.entity = 'Channel';
+        this.dataFields = ['name'];
     };
 
-    Socket.prototype.connect = function () {
-        if (!this.url) {
-            return false;
-        }
+    Channel.prototype = new Message();
+    Channel.prototype.constructor = Channel;
 
-        this.ws = new WebSocket(this.url);
-        this.setHandlers();
-    };
-
-    Socket.prototype.open = function () {
-        console.info('Connected');
-
-        for (var i in this.queue) {
-            this.send(this.queue[i]);
-        }
-    };
-
-    Socket.prototype.message = function (e) {
-        var message = new sdk.Message();
-        var entity = message.getEntity(e.data);
-
-        entity.process();
-    };
-
-    Socket.prototype.error = function () {
-        console.error('Socket error!');
-    };
-
-    Socket.prototype.close = function () {
-        console.info('Lost connection');
-        var self = this;
-        setTimeout(function () {
-            self.connect(self.url)
-        }, 1000);
-    };
-
-    Socket.prototype.send = function (message) {
-        try {
-            this.ws.send(message.export());
-            console.log('Sending', JSON.parse(message.export()));
-            return true;
-        } catch (e) {
-            this.queue.push(message);
-            console.error('Failed to send', message);
-            return false;
-        }
-    };
-
-    exports.Socket = Socket;
     exports.Message = Message;
     exports.Image = Image;
     exports.Album = Album;
     exports.Setting = Setting;
     exports.Chat = Chat;
     exports.Notice = Notice;
+    exports.Channel = Channel;
 
 })(typeof exports === 'undefined' ? this['sdk'] = {} : exports);
-
