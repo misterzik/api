@@ -13,6 +13,7 @@
         this.action = null;
         this.actions = ['create', 'remove', 'modify'];
         this.channel = null;
+        this.sequence = 0;
     }
 
     Message.prototype.setAction = function (action) {
@@ -128,18 +129,18 @@
     };
 
     Message.prototype.create = function (ws) {
-        console.log('Creating not implemented for', this.entity, this);
+        console.log('Creating not implemented for', this.entity);
         return null;
     };
     Message.prototype.modify = function (ws) {
-        console.log('Modification not implemented', this.data);
+        console.log('Modification not implemented', this.entity);
     };
     Message.prototype.remove = function (ws) {
-        console.log('Deletion not implemented', this.data);
+        console.log('Deletion not implemented', this.entity);
     };
 
     Message.prototype.process = function (ws) {
-        console.log('Received message', this);
+        console.log('Received message', this.entity);
         if (!~this.actions.indexOf(this.action)) {
             console.error('Invalid action', this);
             return false;
@@ -195,7 +196,8 @@
         this.entity = 'Chat';
         this.dataFields = [
             'content',
-            'image'
+            'image',
+            'is_author'
         ];
     };
 
@@ -220,7 +222,7 @@
     Channel = function () {
         Message.call(this);
         this.entity = 'Channel';
-        this.dataFields = ['name'];
+        this.dataFields = ['album', 'message_type', 'author'];
     };
 
     Channel.prototype = new Message();

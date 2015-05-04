@@ -33,6 +33,7 @@ Socket.prototype.connect = function () {
 
 Socket.prototype.open = function () {
     console.info('Connected');
+    console.info('Queue is', this.queue);
 
     for (var i in this.queue) {
         this.send(this.queue[i]);
@@ -60,12 +61,19 @@ Socket.prototype.close = function () {
 
 Socket.prototype.send = function (message) {
     try {
-        this.ws.send(message);
         console.log('Sending', JSON.parse(message));
+        this.ws.send(message);
         return true;
     } catch (e) {
-        this.queue.push(message);
+        this.retryLater(message);
         console.error('Failed to send', message, e);
         return false;
+    }
+};
+
+Socket.prototype.retryLater = function (message) {
+    console.log('Stored message for retry');
+    if (!~this.queue.indexOf(message)) {
+        this.queue.push(message);
     }
 };

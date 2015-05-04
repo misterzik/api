@@ -1,29 +1,78 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
     <script src="sdk.js"></script>
     <script src="socket.js"></script>
     <script>
-        function imageHandler(image) {
-            console.log('Handling image', image);
-        }
+        $(function () {
+
+            var imageChannelId;
+            window.URL = window.URL || window.webkitURL;
+
+            var sock = new Socket('wss://api.unsee.cc:3123');
+            sock.connect();
+
+            sdk.Image.prototype.create = function () {
+                console.log('Created image', this);
+
+                var content = btoa(this.data.content);
+
+                var img = document.createElement('img');
+                img.src = "data:;base64," + content;
+                document.body.appendChild(img);
+            };
+
+            sdk.Channel.prototype.create = function () {
+                imageChannelId = this.id;
+
+                var message = this;
+
+                message.id = null;
+                message.action = 'create';
+
+                sock.retryLater(message.export());
+            };
+
+            var ch = new Channel;
+            ch.setAction('create');
+            ch.setData('album', 'album_id');
+            ch.setData('message_type', 'Image');
+            sock.send(ch.export());
+
+            $('#file').on('change', function (e) {
+                jQuery.each(this.files, function (key, file) {
+                    var reader = new FileReader();
+                    reader.onload = uploadImage;
+                    reader.readAsBinaryString(file);
+                });
+            });
+
+            function uploadImage(event) {
+                var im = new Image;
+                im.setAction('create');
+                im.setData('width', '123');
+                im.setData('content', event.target.result);
+                im.setChannel(imageChannelId);
+                sock.send(im.export());
+                // Yay!
+            }
 
 
+        });
 
-        var sock = new Socket('wss://unsee.cc:3123');
-        sock.connect();
+        /* Sending a message
 
-        sdk.Image.prototype.create = function () {
-            console.log('Creating image', this.export());
-        };
+         var ch = new Channel; ch.setAction('create'); ch.setData('message_type', 'Chat'); ch.setData('album', 'album_id'); sock.send(ch.export());
+         // also do this in another window
+         var mess = new Chat; mess.setData('content', 'Hello'); mess.setChannel('new_channel_id'); mess.setId('qweqeq'); mess.setAction('create'); sock.send(mess.export());
+         */
 
-        sdk.Channel.prototype.create = function () {
-            sock.queue.push(this.export());
-            console.log('Saved channel locally');
-        };
+        /* Creating an image
 
-        // var ch = new Channel; ch.setId('Image'); ch.setAction('create'); ch.setData('name', 'channel_test'); sock.send(ch.export());
-        // var im = new Image; im.setAction('create'); im.setData('width', '123'); im.setChannel('channel_test'); sock.send(im.export());
+         var ch = new Channel; ch.setId('Image'); ch.setAction('create'); ch.setData('album', 'album_id'); ch.setData('message_type', 'Image'); sock.send(ch.export());
+         var im = new Image; im.setAction('create'); im.setData('width', '123'); im.setChannel(''); sock.send(im.export());
+         */
     </script>
 </head>
 <body>
