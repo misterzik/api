@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script src="jquery-1.8.3.min.js"></script>
     <script src="sdk.js"></script>
     <script src="socket.js"></script>
     <script>
         $(function () {
 
             var imageChannelId;
-            window.URL = window.URL || window.webkitURL;
-
             var sock = new Socket('wss://api.unsee.cc:3123');
             sock.connect();
 

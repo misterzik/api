@@ -128,25 +128,25 @@
         return JSON.stringify(payload);
     };
 
-    Message.prototype.create = function (ws) {
+    Message.prototype.create = function () {
         console.log('Creating not implemented for', this.entity);
         return null;
     };
-    Message.prototype.modify = function (ws) {
+    Message.prototype.modify = function () {
         console.log('Modification not implemented', this.entity);
     };
-    Message.prototype.remove = function (ws) {
+    Message.prototype.remove = function () {
         console.log('Deletion not implemented', this.entity);
     };
 
-    Message.prototype.process = function (ws) {
+    Message.prototype.process = function () {
         console.log('Received message', this.entity);
         if (!~this.actions.indexOf(this.action)) {
             console.error('Invalid action', this);
             return false;
         }
 
-        return this[this.action](ws);
+        return this[this.action]();
     };
 
     // Specific messages
