@@ -138,6 +138,9 @@
     Message.prototype.remove = function () {
         console.log('Deletion not implemented', this.entity);
     };
+    Message.prototype.attachTo = function () {
+        console.log('Flushing not implemented', this.entity);
+    };
 
     Message.prototype.process = function () {
         console.log('Received message', this.entity);
@@ -148,6 +151,8 @@
 
         return this[this.action]();
     };
+
+
 
     // Specific messages
 

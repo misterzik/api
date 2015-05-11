@@ -73,7 +73,6 @@ sdk.Image.prototype.send = function (host, port, path, method, data, cb) {
 
 sdk.Image.prototype.create = function () {
     this.id = getHash();
-    var message = this;
 
     console.log('Creating new image', this.data.content.length, this.id);
 
@@ -85,9 +84,6 @@ sdk.Image.prototype.create = function () {
 
 sdk.Image.prototype.uploadHandler = function (str) {
     console.log('Received response from S3 ', str);
-
-    var ip = this.ws.upgradeReq.connection.remoteAddress;
-    var id = this.id;
 
     // Create an image record
     redisCli.select(1, function () {
@@ -105,8 +101,13 @@ sdk.Image.prototype.uploadHandler = function (str) {
         }.bind(this));
     }.bind(this));
 
-    // Apply image processing
-    this.send('127.0.0.1', 1337, '/?watermarkText=' + ip, 'PUT', this.data.content, this.processHandler);
+    // Apply image processing and broadcast it
+    this.process(this.processHandler);
+};
+
+sdk.Image.prototype.process = function (handler) {
+    var ip = this.ws.upgradeReq.connection.remoteAddress;
+    this.send('127.0.0.1', 1337, '/?watermarkText=' + ip, 'PUT', this.data.content, handler);
 };
 
 sdk.Image.prototype.processHandler = function (str) {
@@ -115,10 +116,40 @@ sdk.Image.prototype.processHandler = function (str) {
     wss.broadcast(this);
 };
 
-sdk.Image.prototype.fetchHandler = function (str) {
-    console.log('Received response from processor', str.length);
-    this.setData('content', str);
-    wss.broadcast(this);
+sdk.Image.prototype.attachTo = function (channel) {
+    console.log('Flushing all images ...');
+
+    var album = channel.data.album;
+    var ws = channel.ws;
+
+    // Get already available images and push them to the channel
+    redisCli.select(2, function (err, res) {
+        redisCli.zrange(album, 0, 99, function (err, res) {
+            res.forEach(function (imageId) {
+                console.log('Requesting', imageId);
+                sdk.Image.prototype.send('proxy.unsee.cc', 8080, '/' + imageId, 'GET', null, function (res) {
+                    if (res) {
+                        if (res.substr(0, 5) === '<?xml') {
+                            console.log('Got error', res);
+                            return false;
+                        }
+
+                        console.log('Got image!', res.length);
+
+                        // Create an image message
+                        var im = new sdk.Image();
+                        im.setId(imageId);
+                        im.setData('content', res);
+                        im.setAction('create');
+                        im.ws = ws;
+
+                        // Broadcast it to the channel
+                        im.process(im.processHandler);
+                    }
+                }.bind(this));
+            }.bind(this));
+        }.bind(this));
+    }.bind(this));
 };
 
 sdk.Channel.prototype.remove = function () {
@@ -142,59 +173,8 @@ sdk.Channel.prototype.create = function () {
     };
 
     ws.channels[message.id] = channel;
-
-    if (messageType === 'Chat') {
-        try {
-            // Getting author of the album to be used by Chat messages
-            redisCli.select(0, function () {
-                redisCli.hget(album, 'sess', function (some, sess) {
-                    if (sess) {
-                        channel.author = sess.toString();
-                        ws.channels[message.id].author = sess.toString();
-                        message.setData('author', sess);
-                        console.log('Found author of album', channel.album, channel.author);
-                    }
-
-                    // Forcing a response
-                    ws.send(message.export());
-                });
-            });
-        } catch (e) {
-            console.log(e, 'error 2');
-        }
-    } else if(messageType === 'Image') {
-        ws.send(message.export());
-
-        // Get already available images and push them to the channel
-        //ZRANGE album_id 0 9
-        redisCli.select(2, function (err, res) {
-            redisCli.zrange(album, 0, 99, function (err, res) {
-                res.forEach(function (imageId) {
-                    console.log('Requesting', imageId);
-                    sdk.Image.prototype.send('proxy.unsee.cc', 8080, '/' + imageId, 'GET', null, function (res) {
-                        if (res) {
-
-                            if (res.substr(0, 5) === '<?xml') {
-                                console.log('Got error', res);
-                                return false;
-                            }
-
-                            console.log('Got image!', res.length);
-
-                            // Create an image message
-                            var im = new sdk.Image();
-                            im.setId(imageId);
-                            im.setData('content', res);
-                            im.setAction('create');
-
-                            // Broadcast it to the channel
-                            wss.broadcast(im);
-                        }
-                    }.bind(this));
-                }.bind(this));
-            }.bind(this));
-        }.bind(this));
-    }
+    sdk[messageType].prototype.attachTo(this);
+    ws.send(message.export());
 };
 
 // Chat API
@@ -223,6 +203,29 @@ sdk.Chat.prototype.create = function () {
     this.setData('is_author', mySession === channel.author);
 };
 
+sdk.Chat.prototype.attachTo = function (channel) {
+
+    var album = channel.data.album;
+
+    try {
+        // Getting author of the album to be used by Chat messages
+        redisCli.select(0, function () {
+            redisCli.hget(album, 'sess', function (some, sess) {
+                // Found the owner of the album
+                if (sess) {
+                    // Since this is a chat message we'll need to know who's the original OP
+                    // channel.author = sess.toString();
+                    ws.channels[message.id].author = sess.toString();
+                    //message.setData('author', sess);
+                    console.log('Found author of album', channel.album, channel.author);
+                }
+            });
+        });
+    } catch (e) {
+        console.log(e, 'error 2');
+    }
+};
+
 wss.broadcast = function broadcast(entity) {
     console.log('Broadcasting message ...');
 
@@ -239,19 +242,6 @@ wss.broadcast = function broadcast(entity) {
                 console.log('Not sending message of type', entity.entity, 'to', channel.message_type);
             }
         }
-
-        return false;
-
-
-        client.channels.forEach(function (channel) {
-
-
-            if (channel.message_type === entity.entity) {
-                client.send(payload);
-            } else {
-                console.log('Clients channel has a wrong channel message type set', client.channels[entity.channel], entity.entity);
-            }
-        });
     });
 };
 
