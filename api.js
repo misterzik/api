@@ -11,10 +11,13 @@ var WebSocketServer = require('ws').Server;
 var wss = new WebSocketServer({server: app});
 var sdk = require('./sdk.js');
 var crypto = require('crypto');
-var stream = require('stream')
+var stream = require('stream');
+var streamToArray = require('stream-to-array');
 
 try {
     var redis = require("redis");
+    require('redis-scanstreams')(redis);
+
     var redisCli = redis.createClient(6379, 'redis.unsee.cc', {detect_buffers: true, no_ready_check: true});
 } catch (e) {
 }
@@ -85,27 +88,21 @@ sdk.Image.prototype.create = function () {
 sdk.Image.prototype.uploadHandler = function (str) {
     console.log('Received response from S3 ', str);
 
+    var album = this.ws.channels[this.channel].album;
+    var imageId = album + ':' + this.id;
+
     // Create an image record
     redisCli.select(1, function () {
-        redisCli.hset(this.id, 'width', 800);
-        redisCli.hset(this.id, 'height', 600);
-        redisCli.hset(this.id, 'weight', this.data.content.length);
-    }.bind(this));
-
-    var album = this.ws.channels[this.channel].album;
-
-    // Add an image to the images list in an album
-    redisCli.select(2, function () {
-        redisCli.zcount(album, '-inf', '+inf', function (err, res) {
-            redisCli.zadd(album, parseInt(res) + 1, this.id);
-        }.bind(this));
+        redisCli.hset(imageId, 'width', 800);
+        redisCli.hset(imageId, 'height', 600);
+        redisCli.hset(imageId, 'weight', this.data.content.length);
     }.bind(this));
 
     // Apply image processing and broadcast it
-    this.process(this.processHandler);
+    this.processImage(this.processHandler);
 };
 
-sdk.Image.prototype.process = function (handler) {
+sdk.Image.prototype.processImage = function (handler) {
     var ip = this.ws.upgradeReq.connection.remoteAddress;
     this.send('127.0.0.1', 1337, '/?watermarkText=' + ip, 'PUT', this.data.content, handler);
 };
@@ -116,36 +113,79 @@ sdk.Image.prototype.processHandler = function (str) {
     wss.broadcast(this);
 };
 
+sdk.Image.prototype.fetchImageByHash = function (hash, callback) {
+    redisCli.select(1, function (err, res) {
+        redisCli.hgetall(hash, callback);
+    });
+};
+
+
 sdk.Image.prototype.attachTo = function (channel) {
     console.log('Flushing all images ...');
 
     var album = channel.data.album;
     var ws = channel.ws;
+    var limit = channel.data.limit;
+    var from = channel.data.from;
 
-    // Get already available images and push them to the channel
-    redisCli.select(2, function (err, res) {
-        redisCli.zrange(album, 0, 99, function (err, res) {
-            res.forEach(function (imageId) {
-                console.log('Requesting', imageId);
-                sdk.Image.prototype.send('proxy.unsee.cc', 8080, '/' + imageId, 'GET', null, function (res) {
-                    if (res) {
-                        if (res.substr(0, 5) === '<?xml') {
-                            console.log('Got error', res);
-                            return false;
-                        }
+    // Now limit and offset!
+    console.log('limit', limit);
+    console.log('from', from); // not including this one
 
-                        console.log('Got image!', res.length);
+    /**
+     * Redis scan -> HTTP GET -> Redis HGET -> HTTP Process -> Broadcast
+     *
+     */
+        // Get already available images and push them to the channel
+    redisCli.select(1, function (err, res) {
+        streamToArray(redisCli.scan({pattern: album + ':*', count: 1}), function (err, hashes) {
+            if (err) {
+                console.log('Got an error scanning', err);
+                return false;
+            }
+
+            var realHashes = [];
+
+            hashes.forEach(function (hash) {
+                realHashes = realHashes.concat(hash.split(','));
+            });
+
+            console.log('Got hashes', realHashes);
+
+            realHashes.forEach(function (hash) {
+                if (!hash) {
+                    return false;
+                }
+
+                // Image hash without the album name
+                var realImageId = hash.slice(album.length + 1);
+
+                // Fetch the image from the storage
+                sdk.Image.prototype.send('proxy.unsee.cc', 8080, '/' + realImageId, 'GET', null, function (res) {
+                    if (!res) {
+                        return false;
+                    }
+
+                    if (res.substr(0, 5) === '<?xml') {
+                        console.log('Got error', res);
+                        return false;
+                    }
+
+                    console.log('Got image!', res.length);
+
+                    // Get additional image data before sending it out (?)
+                    this.fetchImageByHash(hash, function (err, img) {
 
                         // Create an image message
                         var im = new sdk.Image();
-                        im.setId(imageId);
+                        im.setId(realImageId);
                         im.setData('content', res);
                         im.setAction('create');
                         im.ws = ws;
 
                         // Broadcast it to the channel
-                        im.process(im.processHandler);
-                    }
+                        im.processImage(im.processHandler);
+                    });
                 }.bind(this));
             }.bind(this));
         }.bind(this));

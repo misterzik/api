@@ -7,8 +7,6 @@
         this.id = null;
         this.data = null;
         this.dataFields = [];
-        this.limit = 1;
-        this.offset = 0;
         this.silent = false;
         this.action = null;
         this.actions = ['create', 'remove', 'modify'];
@@ -153,7 +151,6 @@
     };
 
 
-
     // Specific messages
 
     // Image
@@ -227,7 +224,7 @@
     Channel = function () {
         Message.call(this);
         this.entity = 'Channel';
-        this.dataFields = ['album', 'message_type', 'author'];
+        this.dataFields = ['album', 'message_type', 'author', 'from', 'limit'];
     };
 
     Channel.prototype = new Message();
