@@ -224,7 +224,7 @@
     Channel = function () {
         Message.call(this);
         this.entity = 'Channel';
-        this.dataFields = ['album', 'message_type', 'author', 'from', 'limit'];
+        this.dataFields = ['album', 'message_type', 'author', 'sort', 'limit', 'offset'];
     };
 
     Channel.prototype = new Message();

@@ -35,7 +35,6 @@
                 imageChannelId = this.id;
 
                 var message = this;
-
                 message.id = null;
                 message.action = 'create';
 
@@ -46,8 +45,11 @@
             ch.setAction('create');
             ch.setData('album', 'album_id');
             ch.setData('message_type', 'Image');
-            ch.setData('limit', 1);
+            ch.setData('limit', 2);
             sock.send(ch.export());
+
+
+
 
             $('#file').on('change', function (e) {
                 jQuery.each(this.files, function (key, file) {
@@ -66,22 +68,7 @@
                 sock.send(im.export());
                 // Yay!
             }
-
-
         });
-
-        /* Sending a message
-
-         var ch = new Channel; ch.setAction('create'); ch.setData('message_type', 'Chat'); ch.setData('album', 'album_id'); sock.send(ch.export());
-         // also do this in another window
-         var mess = new Chat; mess.setData('content', 'Hello'); mess.setChannel('new_channel_id'); mess.setId('qweqeq'); mess.setAction('create'); sock.send(mess.export());
-         */
-
-        /* Creating an image
-
-         var ch = new Channel; ch.setId('Image'); ch.setAction('create'); ch.setData('album', 'album_id'); ch.setData('message_type', 'Image'); sock.send(ch.export());
-         var im = new Image; im.setAction('create'); im.setData('width', '123'); im.setChannel(''); sock.send(im.export());
-         */
     </script>
 </head>
 <body>

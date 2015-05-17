@@ -120,74 +120,62 @@ sdk.Image.prototype.fetchImageByHash = function (hash, callback) {
 };
 
 
+/**
+ * Todo:
+ *
+ * Channel - send another batch
+ * On edit - send a batch
+ *      but only of it's batched
+ * On reconnect -
+ *          send a batch
+ *          but only if it's batched and still on position 0
+ */
+
+
 sdk.Image.prototype.attachTo = function (channel) {
     console.log('Flushing all images ...');
 
     var album = channel.data.album;
     var ws = channel.ws;
-    var limit = channel.data.limit;
-    var from = channel.data.from;
+    var limit = channel.data.limit || -1;
+    var offset = channel.data.offset || 0;
+    var sort = channel.data.sort || 'ASC';
 
     // Now limit and offset!
     console.log('limit', limit);
-    console.log('from', from); // not including this one
+    console.log('from', offset);
 
-    /**
-     * Redis scan -> HTTP GET -> Redis HGET -> HTTP Process -> Broadcast
-     *
-     */
-        // Get already available images and push them to the channel
+    // Get already available images and push them to the channel
     redisCli.select(1, function (err, res) {
-        streamToArray(redisCli.scan({pattern: album + ':*', count: 1}), function (err, hashes) {
-            if (err) {
-                console.log('Got an error scanning', err);
-                return false;
-            }
-
-            var realHashes = [];
-
+        redisCli.sort(album, 'BY', album + ':*->position', sort, 'LIMIT', offset, limit, function (err, hashes) {
             hashes.forEach(function (hash) {
-                realHashes = realHashes.concat(hash.split(','));
-            });
-
-            console.log('Got hashes', realHashes);
-
-            realHashes.forEach(function (hash) {
-                if (!hash) {
-                    return false;
-                }
-
-                // Image hash without the album name
-                var realImageId = hash.slice(album.length + 1);
-
                 // Fetch the image from the storage
-                sdk.Image.prototype.send('proxy.unsee.cc', 8080, '/' + realImageId, 'GET', null, function (res) {
-                    if (!res) {
+                sdk.Image.prototype.send('proxy.unsee.cc', 8080, '/' + hash, 'GET', null, function (binaryImageData) {
+                    if (!binaryImageData) {
+                        console.log('Could not fetch image from proxy!', hash);
                         return false;
                     }
 
                     if (res.substr(0, 5) === '<?xml') {
-                        console.log('Got error', res);
+                        console.log('Got error', binaryImageData);
                         return false;
                     }
 
-                    console.log('Got image!', res.length);
+                    console.log('Got image form proxy!', binaryImageData.length);
 
-                    // Get additional image data before sending it out (?)
-                    this.fetchImageByHash(hash, function (err, img) {
+                    // Create an image message
+                    var im = new sdk.Image();
+                    im.setId(hash);
+                    im.setData('content', binaryImageData);
+                    im.setAction('create');
+                    im.ws = ws;
 
-                        // Create an image message
-                        var im = new sdk.Image();
-                        im.setId(realImageId);
-                        im.setData('content', res);
-                        im.setAction('create');
-                        im.ws = ws;
-
-                        // Broadcast it to the channel
-                        im.processImage(im.processHandler);
-                    });
+                    // Broadcast it to the channel
+                    im.processImage(im.processHandler);
                 }.bind(this));
             }.bind(this));
+
+            console.log('Sorted images!!!!', res);
         }.bind(this));
     }.bind(this));
 };
