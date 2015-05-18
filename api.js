@@ -113,9 +113,22 @@ sdk.Image.prototype.processHandler = function (str) {
     wss.broadcast(this);
 };
 
-sdk.Image.prototype.fetchImageByHash = function (hash, callback) {
-    redisCli.select(1, function (err, res) {
-        redisCli.hgetall(hash, callback);
+sdk.Image.prototype.getImageContent = function (hash, callback) {
+    // Fetch the image from the storage
+    sdk.Image.prototype.send('proxy.unsee.cc', 8080, '/' + hash, 'GET', null, function (binaryImageData) {
+        if (!binaryImageData) {
+            console.log('Could not fetch image from proxy!', hash);
+            return false;
+        }
+
+        if (binaryImageData.substr(0, 5) === '<?xml') {
+            console.log('Got error', binaryImageData);
+            return false;
+        }
+
+        console.log('Got image form proxy!', binaryImageData.length);
+
+        callback(binaryImageData);
     });
 };
 
@@ -130,7 +143,6 @@ sdk.Image.prototype.fetchImageByHash = function (hash, callback) {
  *          send a batch
  *          but only if it's batched and still on position 0
  */
-
 
 sdk.Image.prototype.attachTo = function (channel) {
     console.log('Flushing all images ...');
@@ -150,19 +162,7 @@ sdk.Image.prototype.attachTo = function (channel) {
         redisCli.sort(album, 'BY', album + ':*->position', sort, 'LIMIT', offset, limit, function (err, hashes) {
             hashes.forEach(function (hash) {
                 // Fetch the image from the storage
-                sdk.Image.prototype.send('proxy.unsee.cc', 8080, '/' + hash, 'GET', null, function (binaryImageData) {
-                    if (!binaryImageData) {
-                        console.log('Could not fetch image from proxy!', hash);
-                        return false;
-                    }
-
-                    if (res.substr(0, 5) === '<?xml') {
-                        console.log('Got error', binaryImageData);
-                        return false;
-                    }
-
-                    console.log('Got image form proxy!', binaryImageData.length);
-
+                sdk.Image.prototype.getImageContent(hash, function (binaryImageData) {
                     // Create an image message
                     var im = new sdk.Image();
                     im.setId(hash);
@@ -172,7 +172,7 @@ sdk.Image.prototype.attachTo = function (channel) {
 
                     // Broadcast it to the channel
                     im.processImage(im.processHandler);
-                }.bind(this));
+                });
             }.bind(this));
 
             console.log('Sorted images!!!!', res);
