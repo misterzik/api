@@ -142,6 +142,10 @@ sdk.Image.prototype.getImageContent = function (hash, callback) {
  * On reconnect -
  *          send a batch
  *          but only if it's batched and still on position 0
+ *
+ *          entity.attachTo(channel)
+ *
+ *
  */
 
 sdk.Image.prototype.attachTo = function (channel) {
@@ -151,7 +155,8 @@ sdk.Image.prototype.attachTo = function (channel) {
     var ws = channel.ws;
     var limit = channel.data.limit || -1;
     var offset = channel.data.offset || 0;
-    var sort = channel.data.sort || 'ASC';
+    var sort_direction = channel.data.sort_direction || 'ASC';
+    var sort_by = channel.data.sort_by || 'position';
 
     // Now limit and offset!
     console.log('limit', limit);
@@ -159,7 +164,10 @@ sdk.Image.prototype.attachTo = function (channel) {
 
     // Get already available images and push them to the channel
     redisCli.select(1, function (err, res) {
-        redisCli.sort(album, 'BY', album + ':*->position', sort, 'LIMIT', offset, limit, function (err, hashes) {
+        redisCli.sort(album, 'BY', album + ':*->' + sort_by, sort_direction, 'LIMIT', offset, limit, function (err, hashes) {
+
+            console.log('Sorted images', hashes);
+
             hashes.forEach(function (hash) {
                 // Fetch the image from the storage
                 sdk.Image.prototype.getImageContent(hash, function (binaryImageData) {
@@ -174,8 +182,6 @@ sdk.Image.prototype.attachTo = function (channel) {
                     im.processImage(im.processHandler);
                 });
             }.bind(this));
-
-            console.log('Sorted images!!!!', res);
         }.bind(this));
     }.bind(this));
 };
@@ -203,6 +209,13 @@ sdk.Channel.prototype.create = function () {
     ws.channels[message.id] = channel;
     sdk[messageType].prototype.attachTo(this);
     ws.send(message.export());
+};
+
+sdk.Channel.prototype.modify = function () {
+    console.log('Modifying a channel', this.data);
+    var messageType = this.data.message_type;
+    sdk[messageType].prototype.attachTo(this);
+    this.ws.send(this.export());
 };
 
 // Chat API

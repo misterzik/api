@@ -7,7 +7,6 @@
         this.id = null;
         this.data = null;
         this.dataFields = [];
-        this.silent = false;
         this.action = null;
         this.actions = ['create', 'remove', 'modify'];
         this.channel = null;
@@ -46,10 +45,6 @@
 
     Message.prototype.setOffset = function (offset) {
         this.offset = offset;
-    };
-
-    Message.prototype.setSilent = function (silent) {
-        this.silent = !!silent;
     };
 
     Message.prototype.getEntity = function (message) {
@@ -95,10 +90,6 @@
             entity.setOffset(message.offset);
         }
 
-        if (message.hasOwnProperty('silent')) {
-            entity.setSilent(message.silent);
-        }
-
         if (message.hasOwnProperty('channel')) {
             entity.setChannel(message.channel);
         }
@@ -120,7 +111,6 @@
         payload.limit = this.limit;
         payload.offset = this.offset;
         payload.action = this.action;
-        payload.silent = this.silent;
         payload.channel = this.channel;
 
         return JSON.stringify(payload);
@@ -224,7 +214,7 @@
     Channel = function () {
         Message.call(this);
         this.entity = 'Channel';
-        this.dataFields = ['album', 'message_type', 'author', 'sort', 'limit', 'offset'];
+        this.dataFields = ['album', 'message_type', 'author', 'sort_direction', 'limit', 'offset', 'sort_by'];
     };
 
     Channel.prototype = new Message();

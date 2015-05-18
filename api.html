@@ -38,6 +38,7 @@
                 message.id = null;
                 message.action = 'create';
 
+                // @todo: Update to handle changed channels when reconnecting
                 sock.retryLater(message.export());
             };
 
@@ -46,10 +47,15 @@
             ch.setData('album', 'album_id');
             ch.setData('message_type', 'Image');
             ch.setData('limit', 2);
+            ch.setData('offset', 0);
             sock.send(ch.export());
 
-
-
+            $('#load_more').click(function () {
+                ch.setAction('modify');
+                ch.data.offset += ch.data.limit;
+                console.log('Requesting new batch', ch.data);
+                sock.send(ch.export());
+            });
 
             $('#file').on('change', function (e) {
                 jQuery.each(this.files, function (key, file) {
@@ -73,5 +79,6 @@
 </head>
 <body>
 <input id="file" type="file" multiple/>
+<button id="load_more">Load more</button>
 </body>
 </html>
