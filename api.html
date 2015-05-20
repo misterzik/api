@@ -39,6 +39,7 @@
                 message.action = 'create';
 
                 // @todo: Update to handle changed channels when reconnecting
+                // @todo: Know what messages are already available on client
                 sock.retryLater(message.export());
             };
 
