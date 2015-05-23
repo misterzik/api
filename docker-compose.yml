@@ -1,3 +1,5 @@
+# docker run -d -p 3000:3000 -v `pwd`/chat.js:/var/www/unsee/chat.js  -v `pwd`/../ssl_certs/unsee.cc.crt:/etc/ssl/certs/unsee.cc.crt -v `pwd`/../ssl_certs/unsee.cc.key:/etc/ssl/private/unsee.cc.key node
+
 chat:
   build: .
   ports:
