@@ -1,5 +1,4 @@
-# docker run -d -p 3000:3000 -v `pwd`/chat.js:/var/www/unsee/chat.js  -v `pwd`/../ssl_certs/unsee.cc.crt:/etc/ssl/certs/unsee.cc.crt -v `pwd`/../ssl_certs/unsee.cc.key:/etc/ssl/private/unsee.cc.key node
-
+# docker run -it --cpu-shares=100 --rm -v `pwd`/chat.js:/var/www/unsee/chat.js -v `pwd`/../ssl_certs/unsee.cc.crt:/etc/ssl/certs/unsee.cc.crt -v `pwd`/../ssl_certs/unsee.cc.key:/etc/ssl/private/unsee.cc.key -p 3000:3000 api
 chat:
   build: .
   ports:

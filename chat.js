@@ -61,9 +61,9 @@ io.on('connection', function (socket) {
         io.to(socket.room).emit('message', resp);
     });
 
-    socket.on('images_added', function () {
+    socket.on('images_added', function (img_hash) {
         try {
-            io.to(socket.room).emit('images_added');
+            io.to(socket.room).emit('images_added', img_hash);
         } catch (e) {
             console.log(e);
         }
