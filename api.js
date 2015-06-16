@@ -11,8 +11,6 @@ var WebSocketServer = require('ws').Server;
 var wss = new WebSocketServer({server: app});
 var sdk = require('./sdk.js');
 var crypto = require('crypto');
-var stream = require('stream');
-var streamToArray = require('stream-to-array');
 
 try {
     var redis = require("redis");
@@ -22,11 +20,10 @@ try {
 } catch (e) {
 }
 
-
 /**
  * Implement a functionality that would prevent broadcast
  * Maybe return false to disable it
- * Because when image is prepared in has to be broadcasted, not what user uploaded
+ * Because when image is prepared it has to be broadcasted, not what user uploaded
  * Otherwise people would receive the unchanged source image
  *
  */
@@ -93,9 +90,12 @@ sdk.Image.prototype.uploadHandler = function (str) {
 
     // Create an image record
     redisCli.select(1, function () {
-        redisCli.hset(imageId, 'width', 800);
-        redisCli.hset(imageId, 'height', 600);
-        redisCli.hset(imageId, 'weight', this.data.content.length);
+        redisCli.sadd(album + ':list', this.id, function () {
+            console.log('Saved image data to redis', imageId);
+            redisCli.hset(imageId, 'width', 800);
+            redisCli.hset(imageId, 'height', 600);
+            redisCli.hset(imageId, 'weight', this.data.content.length);
+        }.bind(this));
     }.bind(this));
 
     // Apply image processing and broadcast it
@@ -123,6 +123,11 @@ sdk.Image.prototype.getImageContent = function (hash, callback) {
 
         if (binaryImageData.substr(0, 5) === '<?xml') {
             console.log('Got error', binaryImageData);
+
+            if (~binaryImageData.indexOf('NoSuchKey')) {
+                console.log('Image was deleted from S3!');
+            }
+
             return false;
         }
 
@@ -163,8 +168,8 @@ sdk.Image.prototype.attachTo = function (channel) {
     console.log('from', offset);
 
     // Get already available images and push them to the channel
-    redisCli.select(1, function (err, res) {
-        redisCli.sort(album, 'BY', album + ':*->' + sort_by, sort_direction, 'LIMIT', offset, limit, function (err, hashes) {
+    redisCli.select(1, function () {
+        redisCli.sort(album + ':list', 'BY', album + ':*->' + sort_by, sort_direction, 'LIMIT', offset, limit, function (err, hashes) {
 
             console.log('Sorted images', hashes);
 
