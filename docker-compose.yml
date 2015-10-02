@@ -5,6 +5,6 @@ chat:
     - 3000:3000
   net: "host"
   volumes:
-    - chat.js:/var/www/unsee/chat.js
-    - ../coreos/certificates/unsee.cc.crt:/etc/ssl/certs/unsee.cc.crt
-    - ../coreos/certificates/unsee.cc.key:/etc/ssl/private/unsee.cc.key
+    - ./chat.js:/var/www/unsee/chat.js
+    - /etc/ssl/certs/unsee.cc.crt:/etc/ssl/certs/unsee.cc.crt
+    - /etc/ssl/private/unsee.cc.key:/etc/ssl/private/unsee.cc.key
